@@ -1,0 +1,723 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>OBS Monitoring</title>
+
+	<style type="text/css">
+	
+		body{
+			background-color: #222125;
+			color: #e2e2e6;
+			font-size: 20px;
+			font-family: 'Lato', sans-serif;
+		}
+
+		::selection{
+			background-color: transparent;
+		}
+
+		#sidebar, #video, #chart, #meter, #bitrate{
+			position: absolute;
+		}
+
+		#sidebar{
+			left: 20px;
+			top: 20px;
+			width: 450px;
+			height: 1000px;
+		}
+
+		#video{
+			left: 470px;
+			top: 20px;
+			height: 500px;
+			width: 720px;
+		}
+
+		#chart {
+			top: 823px;
+			left: 530px;
+			width: 1100px;
+			height: 230px;
+		}
+
+		#chart canvas {
+			width: 100%;
+			height: 100%;
+		}
+
+		#live, #livestream, #recording, #vinput, #ainput{
+			width: 100%;
+			border-radius: 5px;
+			margin-bottom: 20px;
+			padding: 10px;
+		}
+
+		#live, #recording {
+			background-color: #111115;
+			border: 2px solid #111115;
+			text-align: center;
+			padding-top: 13px;
+			padding-bottom: 13px;
+		}
+
+		#livestream, #vinput, #ainput {
+			border: 2px solid #161519;
+			background-color: #29282e;
+		}
+
+		#stream-status, #recording-status {
+			margin: 0;
+			font-size: 60px;
+			font-weight: 900;
+			color: #767680;
+		}
+
+		#stream-status.live, #recording-status.live{
+			color: #fb001a;/* Red */
+		}
+
+		#stream-status.live.bwtest {
+			color: #00cb47 !important; /* Green */
+			/*color: #f7ca18 !important;*/ /* Yellow */
+		}
+
+		hr.seperator {
+			margin-left: -10px;
+			margin-right: -10px;
+			border: 1px solid #161519;
+			border-bottom: 0px;
+		}
+
+		span.small {
+			font-size: 14px;
+			display: block;
+			color: #767680;
+			margin-bottom: 4px;
+		}
+
+		#sidebar table {
+			width: 100%;
+		}
+
+		#sidebar table td {
+			padding-right: 15px;
+			padding-bottom: 5px;
+			font-size: 16px;
+		}
+
+		#bitrate {
+			top: 844px;
+			left: 1667px;
+		}
+
+		span.muted {
+			font-size: 20px;
+			color: #767680;
+			font-weight: bold;
+		}
+
+		#bitrate-span, #time-span {
+			display: block;
+			font-size: 50px;
+			padding-bottom: 20px;
+		}
+
+		#audio-chart {
+			width: 100%;
+			height: 90px !important;
+			background-color: #111115;
+			padding-right: 10px;
+			padding-top: 2px;
+		}
+
+		#bitrate-background {
+			position: absolute;
+			top: 4px;
+			left: 42px;
+			width: 1061px;
+			height: 219px;
+			background-color: #111115;
+			z-index: -1;
+		}
+
+		#bitrate-cover1 {
+			position: absolute;
+			top: 4px;
+			left: 41px;
+			height: 219px;
+			width: 12px;
+			background-color: #222125;
+			z-index: 999;
+		}
+
+		#bitrate-cover2 {
+			position: absolute;
+			top: 4px;
+			left: 47px;
+			height: 219px;
+			width: 10px;
+			background-color: #111115;
+		}
+
+		.table-bitrate-legend {
+			table-layout: fixed;
+			position: absolute;
+			top: 225px;
+			left: 41px;
+			width: 1313px;
+			font-size: 13px;
+			color: #767680;
+		}
+
+		#stream-timecode, #recording-timecode {
+			font-size: 24px;
+		}
+
+		table.text-small td {
+			font-size: 13px !important;
+		}
+		</style>
+</head>
+<body>
+	<div id="sidebar">
+		<div id="live">
+			<h2 id="stream-status">ON AIR</h2>
+			<span id="stream-timecode">00:00:00:00</span>
+		</div>
+
+		<div id="livestream">
+			<b>Live Stream</b>
+			<hr class="seperator" />
+			
+			<table>
+				<tr>
+					<td><span class="small">Platform</span><span id="stream-platform">-</span></td>	
+					<td><span class="small">Server</span><span id="stream-server" style="text-transform: capitalize;">-</span></td>
+					<td><span class="small">Profile</span><span id="stream-profile">-</span></td>
+				</tr>
+				<tr>
+					<td><span class="small">Encoder</span><span id="output-encoder">-</span></td>
+					<td><span class="small">Dropped Frames</span><span id="dropped-frames">0 (0%)</span></td>
+					<td><span class="small">Skipped Frames</span><span id="output-frames">0 (0%)</span></td>
+				</tr>
+				<tr>
+					<td><span class="small">Target Bitrate</span><span id="vbitrate">6000</span> Kbit/s</td>
+					<td><span class="small">Average Bitrate</span><span id="cpu-usage">0</span> Kbit/s</td>
+					<td><span class="small">Data Usage</span><span id="data-usage">0 kB</span></td>
+				</tr>
+			</table>
+		</div>
+
+		<div id="recording">
+			<h2 id="recording-status">RECORDING</h2>
+			<span id="recording-timecode">00:00:00:00</span>
+		</div>
+
+		<div id="vinput">
+			<b>Video</b>
+			<hr class="seperator" />
+
+			<div id="video-timeline" style="width:100%;height:54px;overflow:hidden;"></div>
+			<table style="margin-top: -7px;margin-left:7px;" class="text-small">
+				<tr style="text-align: center;color:#767680;">
+					<td>-5s</td>
+					<td>-4s</td>
+					<td>-3s</td>
+					<td>-2s</td>
+					<td>-1s</td>
+				</tr>
+			</table>
+			<table>
+				<tr>
+					<td><span class="small">Video Standard</span><span id="input-standard">1080p60</span></td>	
+					<td><span class="small">Frame Rate</span><span id="active-fps">0 Hz</span></td>	
+					<td><span class="small">Frame Time</span><span id="render-time">-</span></td>	
+				</tr>
+				<tr>
+					<td><span class="small">Rendered Frames</span><span id="rendered-frames">0</span></td>
+					<td><span class="small">Render Skipped</span><span id="render-frames">0 (0%)</span></td>
+					<td><span class="small">File Size</span><span id="filesize">0 kB</span></td>
+				</tr>
+			</table>
+		</div>
+
+		<div id="ainput">
+			<b>Audio</b>
+			<hr class="seperator" />
+
+			<canvas id="audio-chart"></canvas>
+			<table style="margin-top: -2px;margin-left: 38px;width: 94%;text-align: right;" class="text-small">
+					<tbody>
+						<tr style="color:#767680;">
+						<td style="position:relative;"><span style="position: absolute;left: -35px;">-6s</span>-5s</td>
+						<td>-4s</td>
+						<td>-3s</td>
+						<td>-2s</td>
+						<td>-1s</td>
+						<td>0s</td>
+					</tr>
+				</tbody>
+			</table>
+
+			<table>
+				<tr>
+					<td><span class="small">Sample Rate</span><span id="asamplerate">48000</span> Hz</td>	
+					<td><span class="small">Target Bitrate</span><span id="abitrate">128</span> Kbit/s</td>	
+					<td><span class="small">Channel Setup</span><span id="audio-channel">Stereo</span></td>	
+				</tr>
+			</table>
+		</div>
+	</div>
+
+	<!--div id="video">
+		
+	</div-->
+
+	<div id="chart">
+		 <canvas id="bitrate-chart"></canvas>
+		 <div id="bitrate-background"></div>
+		 <div id="bitrate-cover1"></div>
+		 <div id="bitrate-cover2"></div>
+		 <table class="table-bitrate-legend">
+		 	<tr>
+		 		<td>-120s</td>
+		 		<td>-90s</td>
+		 		<td>-60s</td>
+		 		<td>-30s</td>
+		 		<td>0s</td>
+		 	</tr>
+		 </table>
+	</div>
+
+	<div id="bitrate">
+		<span class="muted">Bitrate (Kbit/s)</span>
+		<span id="bitrate-span">0</span>
+		<span class="muted">Time</span>
+		<span id="time-span">00:00:00</span>
+	</div>
+
+	<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+	<script src="https://cdn.jsdelivr.net/npm/obs-websocket-js"></script>
+	<script type="text/javascript">
+		/* OBS WEBSOCKET STUFF */
+		const obs = new OBSWebSocket();
+		let screenshotSourceName = '';
+
+		let initInterval = setInterval(function(){
+			let wsAddress = getComputedStyle(document.documentElement).getPropertyValue('--address').trim();
+			wsAddress = wsAddress.substring(1, wsAddress.length - 1);
+			
+			let wsPasswd = getComputedStyle(document.documentElement).getPropertyValue('--password').trim();
+			wsPasswd = wsPasswd.substring(1, wsPasswd.length - 1);
+
+			let screenshotSource = getComputedStyle(document.documentElement).getPropertyValue('--screenshot').trim();
+			screenshotSourceName = screenshotSource.substring(1, screenshotSource.length - 1);
+
+			if(wsAddress != '' && wsPasswd != '' && screenshotSource != ''){
+				obs.connect(wsAddress, wsPasswd, {eventSubscriptions: OBSWebSocket.EventSubscription.InputVolumeMeters});
+				clearInterval(initInterval);
+			}
+		}, 250);
+
+		obs.on('ConnectionOpened', function(){
+			setInterval(getScreenshot, 1000);
+		});
+
+		obs.on('InputVolumeMeters', function(event){
+			let volumesL = [];
+			let volumesR = [];
+
+			for(let i = 0; i < event.inputs.length; i++){
+				let input = event.inputs[i];
+
+				if(input.inputLevelsMul.length == 2){
+					volumesL.push(input.inputLevelsMul[0][1]);
+					volumesR.push(input.inputLevelsMul[1][1]);
+				}
+			}
+
+			let volL = volumesL.reduce((a, b) => Math.max(a, b), 0) * 100;
+			let volR = volumesR.reduce((a, b) => Math.max(a, b), 0) * -100;
+			
+			let timestamp = Date.now();
+
+			audioChart.data.labels.push(timestamp);
+		    audioChart.data.datasets[0].data.push(volL);
+		    audioChart.data.datasets[1].data.push(volR);
+
+		    audioChart.update();
+
+		    if(audioChart.data.labels.length > 120){
+				audioChart.data.labels.shift();
+		   		audioChart.data.datasets[0].data.shift();
+		    	audioChart.data.datasets[1].data.shift();
+		    	audioChart.update();
+		    }
+		});
+
+		obs.on('ConnectionOpened', function(){
+			console.log('Connected');
+
+			setInterval(refreshStats, 1000);
+			setInterval(refreshStatus, 200);
+			setTimeout(refreshConfig, 200);
+			setInterval(refreshConfig, 10000);
+		});
+
+		let outputBytesStream = -1;
+		let streamTime = 0;
+		let getReadableFileSizeString = function (fileSizeInBytes) {
+			if(fileSizeInBytes == 0){
+				return '0 kB';
+			}
+
+			var i = -1;
+			var byteUnits = [' kB', ' MB', ' GB', ' TB', 'PB', 'EB', 'ZB', 'YB'];
+			do {
+				fileSizeInBytes /= 1024;
+				i++;
+			} while (fileSizeInBytes > 1024);
+
+			return Math.max(fileSizeInBytes, 0.1).toFixed(1) + byteUnits[i];
+		}
+
+		let targetFPS = 60;
+		let droppedFrames = 0;
+		let skippedFrames = 0;
+		let renderSkipped = 0;
+
+		let refreshConfig = function(){
+			obs.call('GetProfileParameter', {parameterCategory: 'Audio', parameterName: 'SampleRate'}).then(function(data){
+				document.getElementById('asamplerate').innerHTML = data.parameterValue;
+			});
+
+			obs.call('GetProfileParameter', {parameterCategory: 'SimpleOutput', parameterName: 'VBitrate'}).then(function(data){
+				document.getElementById('vbitrate').innerHTML = data.parameterValue;
+			});
+
+			obs.call('GetProfileParameter', {parameterCategory: 'SimpleOutput', parameterName: 'ABitrate'}).then(function(data){
+				document.getElementById('abitrate').innerHTML = data.parameterValue;
+			});
+
+			obs.call('GetProfileParameter', {parameterCategory: 'SimpleOutput', parameterName: 'StreamEncoder'}).then(function(data){
+				let encoder = '<b style="color:#f7ca18;">'+data.parameterValue+'</b>';
+
+				if(data.parameterValue == 'nvenc'){
+					encoder = 'Nvidia NVENC';
+				}
+
+				document.getElementById('output-encoder').innerHTML = encoder;
+			});
+
+			obs.call('GetProfileParameter', {parameterCategory: 'Audio', parameterName: 'ChannelSetup'}).then(function(data){
+				if(data.parameterValue == '2'){
+					document.getElementById('audio-channel').innerHTML = 'Stereo';
+				}else if(data.parameterValue == 1){
+					document.getElementById('audio-channel').innerHTML = 'Mono';
+				}else{
+					document.getElementById('audio-channel').innerHTML = data.parameterValue;
+				}
+			});
+		}
+		
+		let bwtest = false;
+		const refreshStats = function(){
+			obs.call('GetStats').then(function(data){
+				let fps = Math.round(data.activeFps);
+				document.getElementById('active-fps').innerHTML = (fps == targetFPS ? fps+' Hz' : '<b style="color:#f7ca18;">'+fps+' Hz</b>');
+				document.getElementById('render-time').innerHTML = (Math.round(data.averageFrameRenderTime * 100) / 100)+' ms';
+				let htmlRenderSkipped = data.renderSkippedFrames + ' (' + Math.round(data.renderSkippedFrames / data.renderTotalFrames * 10000)/100 + '%)';
+				let htmlSkippedFrames = data.outputSkippedFrames + ' (' + Math.round(data.outputSkippedFrames / (data.outputTotalFrames == 0 ? 1 : data.outputTotalFrames) * 10000)/100 + '%)';
+
+				if(renderSkipped < data.renderSkippedFrames){
+					htmlRenderSkipped = '<b style="color:#fb001a;">'+htmlRenderSkipped+'</b>'
+				}
+
+				if(skippedFrames < data.outputSkippedFrames){
+					htmlSkippedFrames = '<b style="color:#fb001a;">'+htmlSkippedFrames+'</b>'
+				}
+
+				document.getElementById('render-frames').innerHTML = htmlRenderSkipped;
+				document.getElementById('output-frames').innerHTML = htmlSkippedFrames;
+
+				renderSkipped = data.renderSkippedFrames;
+				skippedFrames = data.outputSkippedFrames;
+
+				document.getElementById('rendered-frames').innerHTML = data.renderTotalFrames;
+			});
+
+			obs.call('GetStreamServiceSettings').then(function(data){
+				if(bwtest != data.streamServiceSettings.bwtest){
+					if(data.streamServiceSettings.bwtest){
+						document.getElementById('stream-status').classList.add('bwtest');
+					}else{
+						document.getElementById('stream-status').classList.remove('bwtest');
+					}
+
+					bwtest = data.streamServiceSettings.bwtest;
+				}
+
+				document.getElementById('stream-platform').innerHTML = data.streamServiceSettings.service;
+				document.getElementById('stream-server').innerHTML =  data.streamServiceSettings.bwtest ? '<b style="color:#f7ca18;">Bandwidth Test</b>' : data.streamServiceSettings.server;
+			});
+
+			obs.call('GetVideoSettings').then(function(data){
+				document.getElementById('input-standard').innerHTML = data.baseHeight+'p'+data.fpsNumerator;
+				targetFPS = data.fpsNumerator;
+			});
+
+			obs.call('GetStreamStatus').then(function(data){
+				// document.getElementById('output-total-frames').innerHTML = data.outputTotalFrames;
+				let htmlDroppedFrames = data.outputSkippedFrames + ' (' + Math.round(data.outputSkippedFrames / (data.outputTotalFrames == 0 ? 1 : data.outputTotalFrames) * 10000)/100 + '%)';
+
+				if(droppedFrames < data.outputSkippedFrames){
+					htmlDroppedFrames = '<b style="color:#fb001a;">'+htmlDroppedFrames+'</b>'
+				}
+
+				droppedFrames = data.outputSkippedFrames;
+				document.getElementById('dropped-frames').innerHTML = htmlDroppedFrames;
+
+
+				let outputBytes = Math.round(data.outputBytes / 125);
+				
+				if(outputBytesStream == -1){
+					outputBytesStream = outputBytes;
+					streamTime = data.outputDuration - 1;
+				}
+
+				let bitrate = Math.round((outputBytes - outputBytesStream) / (data.outputDuration - streamTime) * 1000);
+
+				if(isNaN(bitrate) || bitrate < 0 || !isFinite(bitrate)){
+					bitrate = 0;
+				}
+
+				outputBytesStream = outputBytes;
+				streamTime = data.outputDuration;
+				addData(chart, data.outputDuration, bitrate);
+
+				if(streamStatus && bitrate <= 3000){
+					bitrate = '<b style="color:#fb001a;">'+bitrate+'</b>';
+				}else if(streamStatus && bitrate <= 4500){
+					bitrate = '<b style="color:#f7ca18;">'+bitrate+'</b>';
+				}
+
+				document.getElementById('bitrate-span').innerHTML = bitrate;
+				document.getElementById('data-usage').innerHTML = getReadableFileSizeString(data.outputBytes);
+				let averageBitrate = Math.round(data.outputBytes / (data.outputDuration / 1000) / 125);
+
+				if(isNaN(averageBitrate) || averageBitrate < 0 || !isFinite(averageBitrate)){
+					averageBitrate = 0;
+				}
+
+				document.getElementById('cpu-usage').innerHTML =  averageBitrate;
+			});
+
+			obs.call('GetRecordStatus').then(function(data){
+				document.getElementById('filesize').innerHTML = getReadableFileSizeString(data.outputBytes);
+			});
+
+			obs.call('GetProfileList').then(function(data){
+				document.getElementById('stream-profile').innerHTML = data.currentProfileName;
+			});
+		}
+
+		let recordingStatus = false;
+		let streamStatus = false;
+		const refreshStatus = function(){
+			obs.call('GetStreamStatus').then(function(data){
+				if(data.outputActive != streamStatus){
+					if(data.outputActive){
+						document.getElementById('stream-status').classList.add('live');
+					}else{
+						document.getElementById('stream-status').classList.remove('live');
+						document.getElementById('stream-timecode').innerHTML = '00:00:00:00';
+					}
+
+					streamStatus = data.outputActive;
+				}
+
+				if(data.outputActive){
+					let timecode = data.outputTimecode.split('.');
+					document.getElementById('stream-timecode').innerHTML = '00:' + timecode[0];
+				}
+			});
+
+			obs.call('GetRecordStatus').then(function(data){
+				if(data.outputActive != recordingStatus){
+					if(data.outputActive){
+						document.getElementById('recording-status').classList.add('live');
+					}else{
+						document.getElementById('recording-status').classList.remove('live');
+						document.getElementById('recording-timecode').innerHTML = '00:00:00:00';
+					}
+
+					recordingStatus = data.outputActive;
+				}
+
+				if(data.outputActive){
+					let timecode = data.outputTimecode.split('.');
+					document.getElementById('recording-timecode').innerHTML = '00:' + timecode[0];
+				}
+			});
+		}
+
+		let getScreenshot = function(){
+			obs.call('GetSourceScreenshot', {sourceName: screenshotSourceName, imageFormat: 'png', imageWidth: 180}).then(function(data){
+				videoTimeline.innerHTML += '<img style="width:90px;" src="'+data.imageData+'" />';
+			});
+
+			let videoTimeline = document.getElementById('video-timeline');
+			let elements = videoTimeline.getElementsByTagName('img');
+
+			while(elements.length >= 6){
+				videoTimeline.removeChild(elements[0]);
+				elements = videoTimeline.getElementsByTagName('img');
+			}
+		}
+
+		/* TIME */
+		let updateTime = function(){
+			let now = new Date();
+			let h = now.getHours();
+			let m = now.getMinutes();
+			let s = now.getSeconds();
+
+			h = h < 10 ? '0' + h : h;
+			m = m < 10 ? '0' + m : m;
+			s = s < 10 ? '0' + s : s;
+
+			document.getElementById('time-span').innerHTML =  h + ":" + m + ":" + s;
+		}
+
+		setInterval(updateTime, 250);
+
+		/* CHART STUFF*/
+		const ctx = document.getElementById('bitrate-chart');
+		const ctxAudio = document.getElementById('audio-chart');
+
+		const data = {
+		  labels: (new Array(120).fill(0)),
+		  datasets: [
+		    {
+		      label: 'Dataset',
+		      data: (new Array(120).fill(0)),
+		      pointRadius: 0,
+		      borderColor: '#38d0e2',
+		      backgroundColor: '#38d0e21f',
+		      fill: true,
+		      tension: 0.3
+		    }
+		  ]
+		};
+
+		const config = {
+		  type: 'line',
+		  data: data,
+		  options: {
+		    plugins: {
+		      filler: {
+		        propagate: false,
+		      },
+		      legend: {
+		          display:false
+		      }
+		    },
+		    animations: {
+		    	x: {duration: 1000, easing: 'linear'},
+		    	y: {duration: 0},
+		    },
+		    interaction: {
+		      intersect: false,
+		    },
+		    scales: {
+		      x: {ticks: {display: false}, grid: {display: false}},
+		      y: {ticks: {font: {family: 'Lato', weight: 400, size: 13}, color: '#767680', /*callback: function(value, index, ticks) {return value + ' Kbit/s';}*/}, min: 0, max: 9000, grid: {display: false}},
+		    },
+		    responsive: true,
+		    maintainAspectRatio: false
+		  },
+		};
+
+		const configAudio = {
+		  type: 'line',
+		  data: {
+		  labels: (new Array(120).fill(0)),
+		  datasets: [
+		    {
+		      label: 'L',
+		      data: (new Array(120).fill(0)),
+		      pointRadius: 0,
+		      borderColor: '#325c37df',
+		      backgroundColor: '#325c37df',
+		      borderWidth: 1,
+		      fill: true,
+		      tension: 0.0
+		    },
+		    {
+		      label: 'R',
+		      data: (new Array(120).fill(0)),
+		      pointRadius: 0,
+		      borderColor: '#325c37df',
+		      backgroundColor: '#325c37df',
+		      borderWidth: 1,
+		      fill: true,
+		      tension: 0.0
+		    }
+		  ]
+		},
+		  options: {
+		    plugins: {
+		      filler: {
+		        propagate: false,
+		      },
+		      legend: {
+		          display:false
+		      }
+		    },
+		    animations: {
+		    	x: {duration: 0},
+		    	y: {duration: 0},
+		    },
+		    interaction: {
+		      intersect: false,
+		    },
+		    scales: {
+		      x: {ticks: {display: false}, grid: {display: false}},
+		      y: {ticks: {display:false}, grid: {display: false}, min: -50, max: 50},
+		    },
+		    responsive: true,
+		    maintainAspectRatio: false
+		  },
+		};
+
+		let chart = new Chart(ctx, config);
+		let audioChart = new Chart(ctxAudio, configAudio);
+
+		function addData(chart, label, data) {
+		    chart.data.labels.push(label);
+		    chart.data.datasets.forEach((dataset) => {
+		        dataset.data.push(data);
+		    });
+
+		    chart.update();
+
+		    while(chart.data.labels.length > 120){
+		    	removeData(chart);
+		    }
+		}
+
+		function removeData(chart) {
+		    chart.data.labels.shift();
+
+		    chart.data.datasets.forEach((dataset) => {
+		        dataset.data.shift();
+		    });
+
+		    chart.update();
+		}
+	</script>
+</body>
+</html>
