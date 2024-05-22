@@ -18,7 +18,7 @@
             "name": "Twitch"
         }
     ],
-    "name": "Monitoring Demo",
+    "name": "Dashboard Demo",
     "groups": [],
     "quick_transitions": [],
     "transitions": [],
@@ -184,7 +184,7 @@
             "versioned_id": "browser_source",
             "settings": {
                 "is_local_file": true,
-                "local_file": "C:/Users/Philipp/dev/obs-dashboard/assets/monitoring.html",
+                "local_file": "C:/Users/Philipp/dev/obs-dashboard/assets/dashboard.html",
                 "url": "",
                 "width": 1920,
                 "height": 1080,
@@ -336,7 +336,7 @@
             "versioned_id": "browser_source",
             "settings": {
                 "is_local_file": true,
-                "local_file": "C:/Users/Philipp/dev/obs-dashboard/assets/monitoring.html",
+                "local_file": "C:/Users/Philipp/dev/obs-dashboard/assets/dashboard.html",
                 "width": 1920,
                 "height": 1080,
                 "css": ":root {\n    --address:'ws://127.0.0.1:4455'; /* OBS Websocket address */\n    --password:'password'; /* OBS Websocket password */\n    --screenshot: 'Twitch'; /* Source to use for Video timeline */\n}"

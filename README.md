@@ -20,7 +20,7 @@ Follow these steps to install the demo scene collection:
     - Clone or download this repository to your local machine.
 
 2. **Import Scene Collection**:
-    - Import and open the `Monitoring_Demo.json` scene collection in OBS Studio.
+    - Import and open the `Dashboard_Demo.json` scene collection in OBS Studio.
 
 3. **Enable Virtual Camera**:
     - Enable the virtual camera with the Output set to "Program". This loops the program signal back to OBS.
